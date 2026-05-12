@@ -105,7 +105,9 @@ export const facultyAPI = {
   getMyClub: () => api.get('/faculty/my-club'),
   updateClubDescription: (description) => api.put('/faculty/update-club-description', { description }),
 
-  // Submissions/Registrations
+  // Submissions/Registrations  
+  // Status flow for RECRUITMENT: APPLIED → SHORTLISTED → SELECTED or REJECTED
+  // Status flow for NON_RECRUITMENT: APPLIED → APPROVED or REJECTED
   getSubmissions: (clubId) => api.get(`/faculty/submissions/${clubId}`),
   updateRegistrationStatus: (regId, status) =>
     api.put(`/faculty/update-status/${regId}`, null, { params: { status } }),

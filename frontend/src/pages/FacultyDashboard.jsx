@@ -24,13 +24,18 @@ const FacultyDashboard = () => {
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [viewingSubmission, setViewingSubmission] = useState(null);
+    const [viewingEvent, setViewingEvent] = useState(null);
     const [editingEvent, setEditingEvent] = useState(null);
     const [searchEventName, setSearchEventName] = useState('');
 
     const [eventForm, setEventForm] = useState({
         eventName: '', description: '', venueId: '',
-        eventDate: '', eventTime: '', deadline: '', registrationFormLink: ''
+        eventDate: '', eventTime: '', deadline: '', registrationFormLink: '',
+        eventType: 'NON_RECRUITMENT', customFormFields: '[]'
     });
+
+    // Custom form fields state for the builder
+    const [customFields, setCustomFields] = useState([]);
 
     useEffect(() => {
         fetchData();
@@ -61,7 +66,7 @@ const FacultyDashboard = () => {
             console.error('Error fetching club/events:', err);
         }
 
-        // Fetch venue bookings independently — should always run
+        // Fetch venue bookings independently
         try {
             const bookingsRes = await venueAPI.getMyBookings();
             setMyBookings(bookingsRes.data);
@@ -75,15 +80,50 @@ const FacultyDashboard = () => {
     const resetForm = () => {
         setEventForm({
             eventName: '', description: '', venueId: '',
-            eventDate: '', eventTime: '', deadline: '', registrationFormLink: ''
+            eventDate: '', eventTime: '', deadline: '', registrationFormLink: '',
+            eventType: 'NON_RECRUITMENT', customFormFields: '[]'
         });
+        setCustomFields([]);
         setEditingEvent(null);
+    };
+
+    // ─── Custom Fields Builder ───
+    const addCustomField = () => {
+        setCustomFields([...customFields, { label: '', type: 'text', required: false }]);
+    };
+
+    const updateCustomField = (index, key, value) => {
+        const updated = [...customFields];
+        updated[index][key] = value;
+        setCustomFields(updated);
+    };
+
+    const removeCustomField = (index) => {
+        setCustomFields(customFields.filter((_, i) => i !== index));
+    };
+
+    // Sync custom fields to eventForm
+    useEffect(() => {
+        setEventForm(prev => ({ ...prev, customFormFields: JSON.stringify(customFields) }));
+    }, [customFields]);
+
+    // Handle event type change
+    const handleEventTypeChange = (type) => {
+        setEventForm(prev => ({
+            ...prev,
+            eventType: type,
+            registrationFormLink: type === 'RECRUITMENT' ? 'club_form_link' : prev.registrationFormLink
+        }));
     };
 
     const handleAddEvent = async (e) => {
         e.preventDefault();
         try {
-            await facultyAPI.addEvent({ ...eventForm, clubId: club.clubId });
+            const payload = { ...eventForm, clubId: club.clubId };
+            if (payload.eventType === 'RECRUITMENT') {
+                payload.registrationFormLink = 'club_form_link';
+            }
+            await facultyAPI.addEvent(payload);
             setMessage({ type: 'success', text: 'Event added successfully!' });
             setShowAddModal(false);
             resetForm();
@@ -98,6 +138,8 @@ const FacultyDashboard = () => {
         try {
             const res = await facultyAPI.getEventDetails(club.clubId, searchEventName);
             setEditingEvent(res.data);
+            const existingCustomFields = res.data.customFormFields ? JSON.parse(res.data.customFormFields) : [];
+            setCustomFields(existingCustomFields);
             setEventForm({
                 eventName: res.data.eventName || '',
                 description: res.data.description || '',
@@ -105,7 +147,9 @@ const FacultyDashboard = () => {
                 eventDate: res.data.eventDate || '',
                 eventTime: res.data.eventTime || '',
                 deadline: res.data.deadline || '',
-                registrationFormLink: res.data.registrationFormLink || ''
+                registrationFormLink: res.data.registrationFormLink || '',
+                eventType: res.data.eventType || 'NON_RECRUITMENT',
+                customFormFields: res.data.customFormFields || '[]'
             });
             setMessage({ type: '', text: '' });
         } catch (err) {
@@ -117,7 +161,11 @@ const FacultyDashboard = () => {
         e.preventDefault();
         if (!editingEvent) return;
         try {
-            await facultyAPI.updateEvent(editingEvent.eventId, eventForm);
+            const payload = { ...eventForm };
+            if (payload.eventType === 'RECRUITMENT') {
+                payload.registrationFormLink = 'club_form_link';
+            }
+            await facultyAPI.updateEvent(editingEvent.eventId, payload);
             setMessage({ type: 'success', text: 'Event updated!' });
             setShowUpdateModal(false);
             resetForm();
@@ -141,7 +189,7 @@ const FacultyDashboard = () => {
     const handleStatusUpdate = async (regId, status) => {
         try {
             await facultyAPI.updateRegistrationStatus(regId, status);
-            setMessage({ type: 'success', text: `Status updated to ${status}` });
+            setMessage({ type: 'success', text: `Status updated!` });
             fetchData();
         } catch (err) {
             setMessage({ type: 'error', text: err.response?.data || 'Failed to update' });
@@ -164,7 +212,10 @@ const FacultyDashboard = () => {
         return event?.eventName || `Event #${eventId}`;
     };
 
-    // Parse form data JSON safely
+    const getEventForSubmission = (eventId) => {
+        return allEvents.find(e => e.eventId === eventId);
+    };
+
     const parseFormData = (formData) => {
         if (!formData) return null;
         try {
@@ -174,18 +225,19 @@ const FacultyDashboard = () => {
         }
     };
 
-    // Open view modal for a submission
     const openViewModal = (submission) => {
         setViewingSubmission(submission);
+        const event = getEventForSubmission(submission.eventId);
+        setViewingEvent(event);
         setShowViewModal(true);
     };
 
-    // Handle approve/reject from modal
     const handleStatusFromModal = async (status) => {
         if (!viewingSubmission) return;
         await handleStatusUpdate(viewingSubmission.regId, status);
         setShowViewModal(false);
         setViewingSubmission(null);
+        setViewingEvent(null);
     };
 
     const showTab = (tabName) => {
@@ -202,6 +254,134 @@ const FacultyDashboard = () => {
             setMessage({ type: 'error', text: err.response?.data || 'Failed to cancel' });
         }
     };
+
+    // Get status badge styling
+    const getStatusClass = (status) => {
+        switch (status) {
+            case 'APPLIED': return 'status-applied';
+            case 'SHORTLISTED': return 'status-shortlisted';
+            case 'SELECTED': return 'status-selected';
+            case 'APPROVED': return 'status-approved';
+            case 'REJECTED': return 'status-rejected';
+            default: return '';
+        }
+    };
+
+    // Render the event form fields (shared between add and update modals)
+    const renderEventFormFields = () => (
+        <>
+            <div className="form-group">
+                <label>Event Name *</label>
+                <input value={eventForm.eventName} onChange={e => setEventForm({ ...eventForm, eventName: e.target.value })} required />
+            </div>
+            <div className="form-group">
+                <label>Description</label>
+                <textarea value={eventForm.description} onChange={e => setEventForm({ ...eventForm, description: e.target.value })} rows={3} />
+            </div>
+
+            {/* Event Type Toggle */}
+            <div className="form-group">
+                <label><i className="fa-solid fa-tag" /> Event Type *</label>
+                <div className="event-type-toggle">
+                    <button
+                        type="button"
+                        className={`toggle-btn ${eventForm.eventType === 'NON_RECRUITMENT' ? 'active' : ''}`}
+                        onClick={() => handleEventTypeChange('NON_RECRUITMENT')}
+                    >
+                        <i className="fa-solid fa-calendar-days" /> Non-Recruitment
+                    </button>
+                    <button
+                        type="button"
+                        className={`toggle-btn ${eventForm.eventType === 'RECRUITMENT' ? 'active recruitment' : ''}`}
+                        onClick={() => handleEventTypeChange('RECRUITMENT')}
+                    >
+                        <i className="fa-solid fa-user-plus" /> Recruitment
+                    </button>
+                </div>
+            </div>
+
+            <div className="form-row">
+                <div className="form-group">
+                    <label>Event Date</label>
+                    <input type="date" value={eventForm.eventDate} onChange={e => setEventForm({ ...eventForm, eventDate: e.target.value })} />
+                </div>
+                <div className="form-group">
+                    <label>Event Time</label>
+                    <input type="time" value={eventForm.eventTime} onChange={e => setEventForm({ ...eventForm, eventTime: e.target.value })} />
+                </div>
+            </div>
+            <div className="form-row">
+                <div className="form-group">
+                    <label>Venue ID</label>
+                    <input value={eventForm.venueId} onChange={e => setEventForm({ ...eventForm, venueId: e.target.value })} placeholder="e.g., HALL_A" />
+                </div>
+                <div className="form-group">
+                    <label>Registration Deadline</label>
+                    <input type="date" value={eventForm.deadline} onChange={e => setEventForm({ ...eventForm, deadline: e.target.value })} />
+                </div>
+            </div>
+
+            {/* Registration Link — disabled for RECRUITMENT */}
+            <div className="form-group">
+                <label>
+                    <i className="fa-solid fa-link" /> Registration Link
+                    {eventForm.eventType === 'RECRUITMENT' && (
+                        <span className="field-note"> (Auto: Internal Form)</span>
+                    )}
+                </label>
+                <input
+                    value={eventForm.eventType === 'RECRUITMENT' ? 'Internal Form (Automatic)' : eventForm.registrationFormLink}
+                    onChange={e => setEventForm({ ...eventForm, registrationFormLink: e.target.value })}
+                    placeholder="URL or leave blank for internal form"
+                    disabled={eventForm.eventType === 'RECRUITMENT'}
+                    style={eventForm.eventType === 'RECRUITMENT' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                />
+            </div>
+
+            {/* Custom Form Fields Builder — only for RECRUITMENT */}
+            {eventForm.eventType === 'RECRUITMENT' && (
+                <div className="custom-fields-builder">
+                    <div className="builder-header">
+                        <h4><i className="fa-solid fa-list-check" /> Custom Form Fields</h4>
+                        <p className="builder-note">Add extra fields students will fill during registration</p>
+                    </div>
+                    {customFields.map((field, idx) => (
+                        <div key={idx} className="custom-field-row">
+                            <input
+                                className="field-label-input"
+                                value={field.label}
+                                onChange={e => updateCustomField(idx, 'label', e.target.value)}
+                                placeholder={`Field #${idx + 1} label (e.g., "Technical Skills")`}
+                            />
+                            <select
+                                value={field.type}
+                                onChange={e => updateCustomField(idx, 'type', e.target.value)}
+                                className="field-type-select"
+                            >
+                                <option value="text">Text</option>
+                                <option value="textarea">Long Text</option>
+                                <option value="select">Dropdown</option>
+                            </select>
+                            <label className="field-required-label">
+                                <input
+                                    type="checkbox"
+                                    checked={field.required}
+                                    onChange={e => updateCustomField(idx, 'required', e.target.checked)}
+                                />
+                                Required
+                            </label>
+                            <button type="button" className="btn-remove-field" onClick={() => removeCustomField(idx)}>
+                                <i className="fa-solid fa-trash-can" />
+                            </button>
+                        </div>
+                    ))}
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={addCustomField}>
+                        <i className="fa-solid fa-plus" /> Add Field
+                    </button>
+                </div>
+            )}
+        </>
+    );
 
     if (loading) {
         return <div className="faculty-dashboard"><div className="loading-container"><div className="loader"></div></div></div>;
@@ -220,7 +400,6 @@ const FacultyDashboard = () => {
             </header>
 
             <div style={{ height: '1.5rem' }} />
-
 
             {message.text && (
                 <div className={`alert alert-${message.type}`}>
@@ -258,15 +437,32 @@ const FacultyDashboard = () => {
                         <button className="btn btn-secondary" onClick={fetchData}><i className="fa-solid fa-arrows-rotate" /> Refresh</button>
                     </div>
 
-                    {/* Animated Event Cards with Flip Animation */}
                     <div className="event-cards-grid">
                         {events.length > 0 ? events.map((event, index) => (
                             <EventFlipCard
                                 key={event.eventId}
                                 event={event}
                                 index={index}
-                                onAction={(evt) => handleDeleteEvent(evt.eventId)}
-                                showDelete={true}
+                                isAdmin={true} /* Faculty also has admin-like control over their club's events */
+                                onEdit={(evt) => {
+                                    setEditingEvent(evt);
+                                    setSearchEventName(evt.eventName);
+                                    const existingCustomFields = evt.customFormFields ? JSON.parse(evt.customFormFields) : [];
+                                    setCustomFields(existingCustomFields);
+                                    setEventForm({
+                                        eventName: evt.eventName || '',
+                                        description: evt.description || '',
+                                        venueId: evt.venueId || '',
+                                        eventDate: evt.eventDate || '',
+                                        eventTime: evt.eventTime || '',
+                                        deadline: evt.deadline || '',
+                                        registrationFormLink: evt.registrationFormLink || '',
+                                        eventType: evt.eventType || 'NON_RECRUITMENT',
+                                        customFormFields: evt.customFormFields || '[]'
+                                    });
+                                    setShowUpdateModal(true);
+                                }}
+                                onDelete={handleDeleteEvent}
                             />
                         )) : (
                             <p style={{ padding: '2rem', color: 'var(--muted)', textAlign: 'center', gridColumn: '1 / -1' }}>
@@ -286,21 +482,39 @@ const FacultyDashboard = () => {
                     </div>
                     <table>
                         <thead>
-                            <tr><th>User ID</th><th>Event</th><th>Submitted</th><th>Status</th><th>Actions</th></tr>
+                            <tr><th>User ID</th><th>Event</th><th>Type</th><th>Submitted</th><th>Status</th><th>Stage</th><th>Actions</th></tr>
                         </thead>
                         <tbody>
-                            {submissions.length > 0 ? submissions.map(sub => (
-                                <tr key={sub.regId}>
-                                    <td>{sub.userId}</td>
-                                    <td>{getEventName(sub.eventId)}</td>
-                                    <td>{sub.submissionDate ? new Date(sub.submissionDate).toLocaleDateString() : '-'}</td>
-                                    <td><span className={`status-${sub.status?.toLowerCase()}`}>{sub.status}</span></td>
-                                    <td>
-                                        <button className="btn btn-secondary" onClick={() => openViewModal(sub)}><i className="fa-solid fa-eye" /> View</button>
-                                    </td>
-                                </tr>
-                            )) : (
-                                <tr><td colSpan="5">No submissions yet.</td></tr>
+                            {submissions.length > 0 ? submissions.map(sub => {
+                                const subEvent = getEventForSubmission(sub.eventId);
+                                const isRecruitment = subEvent?.eventType === 'RECRUITMENT';
+                                return (
+                                    <tr key={sub.regId}>
+                                        <td>{sub.userId}</td>
+                                        <td>{getEventName(sub.eventId)}</td>
+                                        <td>
+                                            <span className={`type-badge ${isRecruitment ? 'type-recruitment' : 'type-regular'}`}>
+                                                {isRecruitment ? '🎯 Recruitment' : '📅 Regular'}
+                                            </span>
+                                        </td>
+                                        <td>{sub.submissionDate ? new Date(sub.submissionDate).toLocaleDateString() : '-'}</td>
+                                        <td><span className={getStatusClass(sub.status)}>{sub.status}</span></td>
+                                        <td>
+                                            {isRecruitment ? (
+                                                <span className="stage-indicator">
+                                                    {sub.approvalCount === 0 && '⏳ Stage 0'}
+                                                    {sub.approvalCount === 1 && '🔄 Stage 1'}
+                                                    {sub.approvalCount === 2 && '✅ Stage 2 (Final)'}
+                                                </span>
+                                            ) : '-'}
+                                        </td>
+                                        <td>
+                                            <button className="btn btn-secondary" onClick={() => openViewModal(sub)}><i className="fa-solid fa-eye" /> View</button>
+                                        </td>
+                                    </tr>
+                                );
+                            }) : (
+                                <tr><td colSpan="7">No submissions yet.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -320,7 +534,7 @@ const FacultyDashboard = () => {
                                 <tr key={reg.regId}>
                                     <td>{getEventName(reg.eventId)}</td>
                                     <td>{reg.submissionDate ? new Date(reg.submissionDate).toLocaleDateString() : '-'}</td>
-                                    <td><span className={`status-${reg.status?.toLowerCase()}`}>{reg.status}</span></td>
+                                    <td><span className={getStatusClass(reg.status)}>{reg.status}</span></td>
                                 </tr>
                             )) : (
                                 <tr><td colSpan="3">No registrations.</td></tr>
@@ -354,11 +568,7 @@ const FacultyDashboard = () => {
                         <Link to="/booking" className="btn btn-primary"><i className="fa-solid fa-plus" /> New Booking</Link>
                         <button className="btn btn-secondary" onClick={fetchData}><i className="fa-solid fa-arrows-rotate" /> Refresh</button>
                     </div>
-
-                    {/* Calendar View */}
                     <MyBookingsCalendar />
-
-                    {/* Bookings Table */}
                     <h3 style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>All Bookings</h3>
                     <table>
                         <thead>
@@ -393,38 +603,7 @@ const FacultyDashboard = () => {
                         <button className="close-btn" onClick={() => setShowAddModal(false)}>×</button>
                         <h3><i className="fa-solid fa-plus" /> Add New Event</h3>
                         <form onSubmit={handleAddEvent}>
-                            <div className="form-group">
-                                <label>Event Name *</label>
-                                <input value={eventForm.eventName} onChange={e => setEventForm({ ...eventForm, eventName: e.target.value })} required />
-                            </div>
-                            <div className="form-group">
-                                <label>Description</label>
-                                <textarea value={eventForm.description} onChange={e => setEventForm({ ...eventForm, description: e.target.value })} rows={3} />
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Event Date</label>
-                                    <input type="date" value={eventForm.eventDate} onChange={e => setEventForm({ ...eventForm, eventDate: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Event Time</label>
-                                    <input type="time" value={eventForm.eventTime} onChange={e => setEventForm({ ...eventForm, eventTime: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Venue ID</label>
-                                    <input value={eventForm.venueId} onChange={e => setEventForm({ ...eventForm, venueId: e.target.value })} placeholder="e.g., HALL_A" />
-                                </div>
-                                <div className="form-group">
-                                    <label>Registration Deadline</label>
-                                    <input type="date" value={eventForm.deadline} onChange={e => setEventForm({ ...eventForm, deadline: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label>Registration Link</label>
-                                <input value={eventForm.registrationFormLink} onChange={e => setEventForm({ ...eventForm, registrationFormLink: e.target.value })} placeholder="URL or leave blank for internal form" />
-                            </div>
+                            {renderEventFormFields()}
                             <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Create Event</button>
                         </form>
                     </div>
@@ -445,38 +624,7 @@ const FacultyDashboard = () => {
 
                         {editingEvent && (
                             <form onSubmit={handleUpdateEvent} style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-                                <div className="form-group">
-                                    <label>Event Name *</label>
-                                    <input value={eventForm.eventName} onChange={e => setEventForm({ ...eventForm, eventName: e.target.value })} required />
-                                </div>
-                                <div className="form-group">
-                                    <label>Description</label>
-                                    <textarea value={eventForm.description} onChange={e => setEventForm({ ...eventForm, description: e.target.value })} rows={3} />
-                                </div>
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label>Event Date</label>
-                                        <input type="date" value={eventForm.eventDate} onChange={e => setEventForm({ ...eventForm, eventDate: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Event Time</label>
-                                        <input type="time" value={eventForm.eventTime} onChange={e => setEventForm({ ...eventForm, eventTime: e.target.value })} />
-                                    </div>
-                                </div>
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label>Venue ID</label>
-                                        <input value={eventForm.venueId} onChange={e => setEventForm({ ...eventForm, venueId: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Registration Deadline</label>
-                                        <input type="date" value={eventForm.deadline} onChange={e => setEventForm({ ...eventForm, deadline: e.target.value })} />
-                                    </div>
-                                </div>
-                                <div className="form-group">
-                                    <label>Registration Link</label>
-                                    <input value={eventForm.registrationFormLink} onChange={e => setEventForm({ ...eventForm, registrationFormLink: e.target.value })} />
-                                </div>
+                                {renderEventFormFields()}
                                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Update Event</button>
                             </form>
                         )}
@@ -484,7 +632,7 @@ const FacultyDashboard = () => {
                 </div>
             )}
 
-            {/* View Submission Modal */}
+            {/* View Submission Modal — Multi-stage Approval */}
             {showViewModal && viewingSubmission && (
                 <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
                     <div className="modal view-modal" onClick={e => e.stopPropagation()}>
@@ -495,6 +643,14 @@ const FacultyDashboard = () => {
                             <div className="info-row">
                                 <span className="info-label">Event:</span>
                                 <span className="info-value">{getEventName(viewingSubmission.eventId)}</span>
+                            </div>
+                            <div className="info-row">
+                                <span className="info-label">Event Type:</span>
+                                <span className="info-value">
+                                    <span className={`type-badge ${viewingEvent?.eventType === 'RECRUITMENT' ? 'type-recruitment' : 'type-regular'}`}>
+                                        {viewingEvent?.eventType === 'RECRUITMENT' ? '🎯 Recruitment' : '📅 Regular'}
+                                    </span>
+                                </span>
                             </div>
                             <div className="info-row">
                                 <span className="info-label">User ID:</span>
@@ -510,10 +666,22 @@ const FacultyDashboard = () => {
                             </div>
                             <div className="info-row">
                                 <span className="info-label">Status:</span>
-                                <span className={`status-badge status-${viewingSubmission.status?.toLowerCase()}`}>
+                                <span className={getStatusClass(viewingSubmission.status)}>
                                     {viewingSubmission.status}
                                 </span>
                             </div>
+                            {viewingEvent?.eventType === 'RECRUITMENT' && (
+                                <div className="info-row">
+                                    <span className="info-label">Approval Stage:</span>
+                                    <span className="info-value">
+                                        <span className="stage-indicator">
+                                            {viewingSubmission.approvalCount === 0 && '⏳ Stage 0 — Awaiting review'}
+                                            {viewingSubmission.approvalCount === 1 && '🔄 Stage 1 — Shortlisted (interview/further rounds)'}
+                                            {viewingSubmission.approvalCount === 2 && '✅ Stage 2 — Selected as Member'}
+                                        </span>
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="form-data-section">
@@ -523,7 +691,23 @@ const FacultyDashboard = () => {
                                     {Object.entries(parseFormData(viewingSubmission.formData)).map(([key, value]) => (
                                         <div className="form-data-item" key={key}>
                                             <span className="data-label">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</span>
-                                            <span className="data-value">{value || '-'}</span>
+                                            <span className="data-value">
+                                                {Array.isArray(value) ? (
+                                                    <div className="links-list">
+                                                        {value.map((item, i) => (
+                                                            <div key={i} className="link-item">
+                                                                {typeof item === 'object' ? (
+                                                                    <a href={item.url} target="_blank" rel="noopener noreferrer">
+                                                                        {item.label || item.url}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span>{item}</span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (value || '-')}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
@@ -532,22 +716,68 @@ const FacultyDashboard = () => {
                             )}
                         </div>
 
-                        {viewingSubmission.status === 'APPLIED' && (
-                            <div className="modal-actions">
-                                <button
-                                    className="btn btn-success"
-                                    onClick={() => handleStatusFromModal('APPROVED')}
-                                >
-                                    ✓ Approve
-                                </button>
-                                <button
-                                    className="btn btn-danger"
-                                    onClick={() => handleStatusFromModal('REJECTED')}
-                                >
-                                    ✗ Reject
-                                </button>
-                            </div>
-                        )}
+                        {/* Action Buttons — Context-dependent */}
+                        {(() => {
+                            const isRecruitment = viewingEvent?.eventType === 'RECRUITMENT';
+                            const status = viewingSubmission.status;
+                            const count = viewingSubmission.approvalCount || 0;
+
+                            if (status === 'SELECTED' || status === 'REJECTED' || status === 'APPROVED') {
+                                return (
+                                    <div className="modal-actions">
+                                        <p className="finalized-note">
+                                            {status === 'SELECTED' && '✅ This student has been selected as a club member.'}
+                                            {status === 'APPROVED' && '✅ This registration has been approved.'}
+                                            {status === 'REJECTED' && '❌ This registration has been rejected.'}
+                                        </p>
+                                    </div>
+                                );
+                            }
+
+                            if (isRecruitment) {
+                                if (count === 0) {
+                                    return (
+                                        <div className="modal-actions">
+                                            <div className="approval-stage-info">
+                                                <i className="fa-solid fa-info-circle" /> Stage 1: Shortlist for further rounds (interview, etc.)
+                                            </div>
+                                            <button className="btn btn-warning" onClick={() => handleStatusFromModal('APPROVED')}>
+                                                🔄 Shortlist for Further Rounds
+                                            </button>
+                                            <button className="btn btn-danger" onClick={() => handleStatusFromModal('REJECTED')}>
+                                                ✗ Reject
+                                            </button>
+                                        </div>
+                                    );
+                                } else if (count === 1) {
+                                    return (
+                                        <div className="modal-actions">
+                                            <div className="approval-stage-info">
+                                                <i className="fa-solid fa-info-circle" /> Stage 2: Final selection as club member
+                                            </div>
+                                            <button className="btn btn-success" onClick={() => handleStatusFromModal('APPROVED')}>
+                                                ✅ Select as Club Member
+                                            </button>
+                                            <button className="btn btn-danger" onClick={() => handleStatusFromModal('REJECTED')}>
+                                                ✗ Reject
+                                            </button>
+                                        </div>
+                                    );
+                                }
+                            } else {
+                                // Non-recruitment: single stage
+                                return (
+                                    <div className="modal-actions">
+                                        <button className="btn btn-success" onClick={() => handleStatusFromModal('APPROVED')}>
+                                            ✓ Approve
+                                        </button>
+                                        <button className="btn btn-danger" onClick={() => handleStatusFromModal('REJECTED')}>
+                                            ✗ Reject
+                                        </button>
+                                    </div>
+                                );
+                            }
+                        })()}
                     </div>
                 </div>
             )}

@@ -1,23 +1,32 @@
 import { motion } from 'framer-motion';
 
-const EventFlipCard = ({ event, index, onAction, showDelete }) => {
+const EventFlipCard = ({ event, index, onAction, onEdit, onDelete, onToggleVisibility, isAdmin }) => {
+  const isHidden = event.hidden;
+
   return (
     <motion.div
-      className="event-blob-card"
+      className={`event-blob-card ${isHidden ? 'event-card--hidden' : ''}`}
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
     >
       {/* The animated moving blob background */}
-      <div className="event-blob" />
+      <div className={`event-blob ${isHidden ? 'blob--hidden' : ''}`} />
 
       {/* The glassmorphic foreground containing content */}
       <div 
         className="event-blob-bg" 
-        style={{ cursor: !showDelete && onAction ? 'pointer' : 'default' }}
-        onClick={() => !showDelete && onAction && onAction(event)}
+        style={{ cursor: onAction && !isAdmin ? 'pointer' : 'default' }}
+        onClick={() => onAction && !isAdmin && onAction(event)}
       >
         
+        {/* Hidden Badge */}
+        {isHidden && (
+          <div className="ebc-hidden-badge">
+            <i className="fa-solid fa-eye-slash"></i> Hidden from Public
+          </div>
+        )}
+
         {/* Header: Title & Date Badge */}
         <div className="ebc-header">
           <div>
@@ -58,17 +67,38 @@ const EventFlipCard = ({ event, index, onAction, showDelete }) => {
           {event.description || 'Join this exciting event on campus. See you there!'}
         </p>
 
-        {/* Action Button - Only for Delete now */}
-        {showDelete && (
+        {/* Admin Actions */}
+        {isAdmin && (
           <div className="ebc-actions">
             <button
-              className="ebc-btn btn-delete"
+              className="ebc-btn btn-edit"
+              title="Edit Event"
               onClick={(e) => {
                   e.stopPropagation();
-                  onAction && onAction(event);
+                  onEdit && onEdit(event);
               }}
             >
-              🗑️ Delete Event
+              <i className="fa-solid fa-pen"></i>
+            </button>
+            <button
+              className={`ebc-btn ${isHidden ? 'btn-unhide' : 'btn-hide'}`}
+              title={isHidden ? "Unhide Event" : "Hide Event"}
+              onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleVisibility && onToggleVisibility(event.eventId);
+              }}
+            >
+              <i className={`fa-solid ${isHidden ? 'fa-eye' : 'fa-eye-slash'}`}></i>
+            </button>
+            <button
+              className="ebc-btn btn-delete"
+              title="Delete Event"
+              onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete && onDelete(event.eventId);
+              }}
+            >
+              <i className="fa-solid fa-trash"></i>
             </button>
           </div>
         )}

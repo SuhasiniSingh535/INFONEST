@@ -22,4 +22,9 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
     @Query("SELECT r FROM Registration r WHERE r.eventId IN (SELECT e.eventId FROM Event e WHERE e.clubId = :clubId)")
     List<Registration> findAllByClubId(@Param("clubId") String clubId);
 
+    // Find members: students with approvalCount = 2 for recruitment events of a club
+    @Query("SELECT DISTINCT r.userId FROM Registration r WHERE r.approvalCount = 2 AND r.eventId IN (SELECT e.eventId FROM Event e WHERE e.clubId = :clubId AND e.eventType = 'RECRUITMENT')")
+    List<Long> findMemberUserIdsByClubId(@Param("clubId") String clubId);
+
 }
+

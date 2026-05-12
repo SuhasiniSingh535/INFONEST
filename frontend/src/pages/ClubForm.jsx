@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { studentAPI } from '../services/api';
+import { studentAPI, eventsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import './ClubForm.css';
 
@@ -9,19 +9,22 @@ const ClubForm = () => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [eventInfo, setEventInfo] = useState(null);
+    const [customFields, setCustomFields] = useState([]);
     const [formData, setFormData] = useState({
         name: '',
         college: '',
         branch: '',
         year: '',
         phone: '',
-        resumeLink: '',
         message: ''
     });
+    // Dynamic links: array of {label, url}
+    const [links, setLinks] = useState([]);
+    // Custom field values
+    const [customValues, setCustomValues] = useState({});
     const [message, setMessage] = useState({ type: '', text: '' });
 
     useEffect(() => {
-        // Check for pending registration
         const pending = sessionStorage.getItem('pendingRegistration');
         if (!pending) {
             setMessage({ type: 'error', text: 'No event selected. Please select an event first.' });
@@ -36,11 +39,56 @@ const ClubForm = () => {
         if (user?.firstName) {
             setFormData(prev => ({ ...prev, name: user.firstName + (user.lastName ? ' ' + user.lastName : '') }));
         }
+
+        // Fetch event details to get custom fields
+        if (pendingData.eventId) {
+            fetchEventDetails(pendingData.eventId);
+        }
     }, [user, navigate]);
+
+    const fetchEventDetails = async (eventId) => {
+        try {
+            const res = await eventsAPI.getEventById(eventId);
+            const event = res.data;
+            if (event.customFormFields) {
+                try {
+                    const fields = JSON.parse(event.customFormFields);
+                    if (Array.isArray(fields) && fields.length > 0) {
+                        setCustomFields(fields);
+                        // Initialize custom values
+                        const initValues = {};
+                        fields.forEach(f => { initValues[f.label] = ''; });
+                        setCustomValues(initValues);
+                    }
+                } catch { }
+            }
+        } catch (err) {
+            console.error('Error fetching event details:', err);
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleCustomValueChange = (label, value) => {
+        setCustomValues(prev => ({ ...prev, [label]: value }));
+    };
+
+    // Link management
+    const addLink = () => {
+        setLinks([...links, { label: '', url: '' }]);
+    };
+
+    const updateLink = (index, field, value) => {
+        const updated = [...links];
+        updated[index][field] = value;
+        setLinks(updated);
+    };
+
+    const removeLink = (index) => {
+        setLinks(links.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async (e) => {
@@ -49,7 +97,7 @@ const ClubForm = () => {
         setMessage({ type: '', text: '' });
 
         try {
-            // Step 1: Create registration first
+            // Step 1: Create registration
             const registration = {
                 userId: user.userId,
                 eventId: eventInfo.eventId
@@ -57,16 +105,18 @@ const ClubForm = () => {
             const regResponse = await studentAPI.registerForEvent(registration);
             const regId = regResponse.data.regId;
 
-            // Step 2: Update with form data
-            const formDataJson = JSON.stringify(formData);
+            // Step 2: Build form data with all fields
+            const fullFormData = {
+                ...formData,
+                ...customValues,
+                links: links.filter(l => l.url.trim()) // Only include links with URLs
+            };
+            const formDataJson = JSON.stringify(fullFormData);
             await studentAPI.updateFormData(regId, formDataJson);
 
-            // Clear pending registration
             sessionStorage.removeItem('pendingRegistration');
-
             setMessage({ type: 'success', text: 'Registration successful!' });
 
-            // Redirect to dashboard after 1.5 seconds
             setTimeout(() => {
                 if (user?.role === 'ADMIN') navigate('/admin');
                 else if (user?.role === 'FACULTY') navigate('/faculty');
@@ -107,25 +157,17 @@ const ClubForm = () => {
                             <div className="form-group">
                                 <label htmlFor="name">Full Name *</label>
                                 <input
-                                    type="text"
-                                    id="name"
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    placeholder="Your full name"
-                                    required
+                                    type="text" id="name" name="name"
+                                    value={formData.name} onChange={handleChange}
+                                    placeholder="Your full name" required
                                 />
                             </div>
                             <div className="form-group">
                                 <label htmlFor="college">College/Department *</label>
                                 <input
-                                    type="text"
-                                    id="college"
-                                    name="college"
-                                    value={formData.college}
-                                    onChange={handleChange}
-                                    placeholder="e.g., CSE"
-                                    required
+                                    type="text" id="college" name="college"
+                                    value={formData.college} onChange={handleChange}
+                                    placeholder="e.g., CSE" required
                                 />
                             </div>
                         </div>
@@ -134,24 +176,14 @@ const ClubForm = () => {
                             <div className="form-group">
                                 <label htmlFor="branch">Branch/Major *</label>
                                 <input
-                                    type="text"
-                                    id="branch"
-                                    name="branch"
-                                    value={formData.branch}
-                                    onChange={handleChange}
-                                    placeholder="e.g., Computer Science"
-                                    required
+                                    type="text" id="branch" name="branch"
+                                    value={formData.branch} onChange={handleChange}
+                                    placeholder="e.g., Computer Science" required
                                 />
                             </div>
                             <div className="form-group">
                                 <label htmlFor="year">Year of Study *</label>
-                                <select
-                                    id="year"
-                                    name="year"
-                                    value={formData.year}
-                                    onChange={handleChange}
-                                    required
-                                >
+                                <select id="year" name="year" value={formData.year} onChange={handleChange} required>
                                     <option value="">Select Year</option>
                                     <option value="1st Year">1st Year</option>
                                     <option value="2nd Year">2nd Year</option>
@@ -165,37 +197,79 @@ const ClubForm = () => {
                         <div className="form-group">
                             <label htmlFor="phone">Phone Number *</label>
                             <input
-                                type="tel"
-                                id="phone"
-                                name="phone"
-                                value={formData.phone}
-                                onChange={handleChange}
-                                placeholder="Your contact number"
-                                required
+                                type="tel" id="phone" name="phone"
+                                value={formData.phone} onChange={handleChange}
+                                placeholder="Your contact number" required
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="resumeLink">Resume/Portfolio Link (Optional)</label>
-                            <input
-                                type="url"
-                                id="resumeLink"
-                                name="resumeLink"
-                                value={formData.resumeLink}
-                                onChange={handleChange}
-                                placeholder="https://your-portfolio.com"
-                            />
+                        {/* Dynamic Links Section */}
+                        <div className="links-section">
+                            <div className="links-header">
+                                <label><i className="fa-solid fa-link" /> Add Links (Optional)</label>
+                                <p className="links-note">Add your portfolio, GitHub, LinkedIn, or any relevant links</p>
+                            </div>
+                            {links.map((link, idx) => (
+                                <div key={idx} className="link-input-row">
+                                    <input
+                                        type="text"
+                                        value={link.label}
+                                        onChange={e => updateLink(idx, 'label', e.target.value)}
+                                        placeholder="Label (e.g., GitHub)"
+                                        className="link-label-input"
+                                    />
+                                    <input
+                                        type="url"
+                                        value={link.url}
+                                        onChange={e => updateLink(idx, 'url', e.target.value)}
+                                        placeholder="https://..."
+                                        className="link-url-input"
+                                    />
+                                    <button type="button" className="btn-remove-link" onClick={() => removeLink(idx)}>
+                                        <i className="fa-solid fa-trash-can" />
+                                    </button>
+                                </div>
+                            ))}
+                            <button type="button" className="btn-add-link" onClick={addLink}>
+                                <i className="fa-solid fa-plus" /> Add Link
+                            </button>
                         </div>
+
+                        {/* Custom Fields from Event */}
+                        {customFields.length > 0 && (
+                            <div className="custom-fields-section">
+                                <h3><i className="fa-solid fa-list-check" /> Additional Information</h3>
+                                {customFields.map((field, idx) => (
+                                    <div className="form-group" key={idx}>
+                                        <label>{field.label} {field.required && '*'}</label>
+                                        {field.type === 'textarea' ? (
+                                            <textarea
+                                                value={customValues[field.label] || ''}
+                                                onChange={e => handleCustomValueChange(field.label, e.target.value)}
+                                                rows={3}
+                                                required={field.required}
+                                                placeholder={`Enter ${field.label.toLowerCase()}`}
+                                            />
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={customValues[field.label] || ''}
+                                                onChange={e => handleCustomValueChange(field.label, e.target.value)}
+                                                required={field.required}
+                                                placeholder={`Enter ${field.label.toLowerCase()}`}
+                                            />
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="form-group">
                             <label htmlFor="message">Why do you want to participate? (Optional)</label>
                             <textarea
-                                id="message"
-                                name="message"
-                                value={formData.message}
-                                onChange={handleChange}
-                                rows="3"
-                                placeholder="Tell us about your interest..."
+                                id="message" name="message"
+                                value={formData.message} onChange={handleChange}
+                                rows="3" placeholder="Tell us about your interest..."
                             />
                         </div>
 

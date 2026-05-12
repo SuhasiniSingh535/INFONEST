@@ -283,24 +283,7 @@ const Schedule = () => {
                 {/* --- Existing Search Button ke theek niche --- */}
 
                 {/* 1. Management Mode: Teacher Results List (Dropdown) */}
-                {isManagementMode && teacherResults.length > 0 && (
-                    <div className="teacher-results-list card" style={{ marginTop: '20px' }}>
-                        <h4>Select Teacher to Manage</h4>
-                        {teacherResults.map((t) => (
-                            <div key={t.userId} className="teacher-item" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: '1px solid #eee' }}>
-                                <div>
-                                    <strong>{t.firstName} {t.lastName}</strong>
-                                    <p style={{ fontSize: '0.8rem', color: 'gray', margin: 0 }}>{t.email}</p>
-                                </div>
-                                <div className="action-buttons" style={{ display: 'flex', gap: '5px' }}>
-                                    <button className="btn-sm" onClick={() => { setSelectedTeacher(t); setIsUpdateMode(false); }}>Add</button>
-                                    <button className="btn-sm" onClick={() => { setSelectedTeacher(t); setIsUpdateMode(true); }}>Edit</button>
-                                    <button className="btn-sm btn-danger" onClick={() => handleDelete(t.firstName)}>Delete</button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                
 
                 {/* 2. Dynamic Upload Section (Appears when Add/Edit is clicked) */}
                 {isManagementMode && selectedTeacher && (

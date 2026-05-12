@@ -2,7 +2,7 @@ package com.infonest.controller;
 
 import com.infonest.dto.*;
 import com.infonest.service.AuthService;
-import com.infonest.service.EmailService; 
+import com.infonest.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,16 +36,16 @@ public class AuthController {
 
         // Step 1: Generate 6-digit OTP
         String otp = String.format("%06d", new Random().nextInt(1000000));
-        
+
         // Step 2: Store details in memory (DB entry nahi hogi yahan)
         pendingRequests.put(request.getEmail(), request);
         otpStorage.put(request.getEmail(), otp);
-        
+
         // Step 3: Send Email using your sendEmail method
         String subject = "Infonest - Email Verification";
         String body = "Your verification code is: " + otp + "\nThis code is valid for 10 minutes.";
         emailService.sendEmail(request.getEmail(), subject, body);
-        
+
         return ResponseEntity.ok("OTP_SENT");
     }
 
@@ -58,12 +58,13 @@ public class AuthController {
             // OTP match! Now register in Database using your AuthService
             SignupRequest originalRequest = pendingRequests.get(email);
             String msg = authService.register(originalRequest);
-            
+
             // Cleanup memory
             pendingRequests.remove(email);
             otpStorage.remove(email);
-            
-            return msg.contains("Error") ? ResponseEntity.badRequest().body(msg) : ResponseEntity.ok("ACCOUNT_CREATED_SUCCESSFULLY");
+
+            return msg.contains("Error") ? ResponseEntity.badRequest().body(msg)
+                    : ResponseEntity.ok("ACCOUNT_CREATED_SUCCESSFULLY");
         }
         return ResponseEntity.badRequest().body("Error: Invalid or Expired OTP");
     }

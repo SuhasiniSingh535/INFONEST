@@ -65,6 +65,16 @@ public class ClubOfficialController {
                     .body("Error: Registration deadline must be before the event date!");
         }
 
+        // If recruitment event, force internal form
+        if ("RECRUITMENT".equals(event.getEventType())) {
+            event.setRegistrationFormLink("club_form_link");
+        }
+
+        // Set defaults
+        if (event.getEventType() == null) {
+            event.setEventType("NON_RECRUITMENT");
+        }
+
         // Ensure new events are visible by default
         event.setHidden(false);
 
@@ -128,7 +138,15 @@ public class ClubOfficialController {
         event.setEventDate(eventDetails.getEventDate());
         event.setEventTime(eventDetails.getEventTime());
         event.setDeadline(eventDetails.getDeadline());
-        event.setRegistrationFormLink(eventDetails.getRegistrationFormLink());
+        event.setEventType(eventDetails.getEventType() != null ? eventDetails.getEventType() : "NON_RECRUITMENT");
+        event.setCustomFormFields(eventDetails.getCustomFormFields());
+
+        // If recruitment event, force internal form
+        if ("RECRUITMENT".equals(event.getEventType())) {
+            event.setRegistrationFormLink("club_form_link");
+        } else {
+            event.setRegistrationFormLink(eventDetails.getRegistrationFormLink());
+        }
 
         eventRepository.save(event);
         return ResponseEntity.ok("Event details updated successfully!");
@@ -170,8 +188,7 @@ public class ClubOfficialController {
         return ResponseEntity.ok(registrationRepository.findAllByClubId(clubId));
     }
 
-    // 6. UPDATE STATUS (Approve/Reject) - Only for faculty's own club's
-    // registrations
+    // 6. UPDATE STATUS (Approve/Reject) - Multi-stage for RECRUITMENT events
     @PutMapping("/update-status/{regId}")
     @PreAuthorize("hasRole('FACULTY')")
     public ResponseEntity<String> updateStatus(@PathVariable Long regId,
@@ -180,9 +197,9 @@ public class ClubOfficialController {
         Registration reg = registrationRepository.findById(regId)
                 .orElseThrow(() -> new RuntimeException("Registration not found"));
 
-        // Check if already finalized (APPROVED or REJECTED) - prevent re-action
+        // Check if already finalized (SELECTED or REJECTED) - prevent re-action
         String currentStatus = reg.getStatus();
-        if ("APPROVED".equals(currentStatus) || "REJECTED".equals(currentStatus)) {
+        if ("SELECTED".equals(currentStatus) || "REJECTED".equals(currentStatus)) {
             return ResponseEntity.badRequest()
                     .body("Error: This registration has already been " + currentStatus
                             + ". Decision cannot be changed!");
@@ -200,9 +217,40 @@ public class ClubOfficialController {
                     .body("Error: You can only manage registrations for your own club's events!");
         }
 
-        reg.setStatus(status);
-        registrationRepository.save(reg);
-        return ResponseEntity.ok("Status updated to " + status);
+        boolean isRecruitment = "RECRUITMENT".equals(event.getEventType());
+
+        if ("REJECTED".equals(status)) {
+            // Reject at any stage
+            reg.setStatus("REJECTED");
+            registrationRepository.save(reg);
+            return ResponseEntity.ok("Registration rejected.");
+        }
+
+        if (isRecruitment) {
+            // Multi-stage approval for RECRUITMENT events
+            int currentCount = reg.getApprovalCount() != null ? reg.getApprovalCount() : 0;
+            if (currentCount == 0) {
+                // First approval: APPLIED -> SHORTLISTED
+                reg.setApprovalCount(1);
+                reg.setStatus("SHORTLISTED");
+                registrationRepository.save(reg);
+                return ResponseEntity.ok("Student shortlisted for further rounds (Stage 1).");
+            } else if (currentCount == 1) {
+                // Second approval: SHORTLISTED -> SELECTED (member)
+                reg.setApprovalCount(2);
+                reg.setStatus("SELECTED");
+                registrationRepository.save(reg);
+                return ResponseEntity.ok("Student selected as club member (Stage 2 - Final)!");
+            } else {
+                return ResponseEntity.badRequest().body("Error: Student is already fully approved.");
+            }
+        } else {
+            // Single-stage approval for NON_RECRUITMENT events
+            reg.setStatus("APPROVED");
+            reg.setApprovalCount(1);
+            registrationRepository.save(reg);
+            return ResponseEntity.ok("Registration approved.");
+        }
     }
 
     // 7. GET ALL EVENTS FOR FACULTY'S CLUB

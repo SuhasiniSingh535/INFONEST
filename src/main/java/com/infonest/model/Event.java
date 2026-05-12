@@ -27,7 +27,15 @@ public class Event {
     // Isme URL ya "club_form_link" store hoga
     private String registrationFormLink;
 
+    // RECRUITMENT or NON_RECRUITMENT
+    @Column(nullable = true)
+    private String eventType = "NON_RECRUITMENT";
+
+    // JSON string for custom form fields (only for RECRUITMENT events)
+    @Column(columnDefinition = "TEXT")
+    private String customFormFields;
+
     // Admin can hide events from public view
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Boolean hidden = false;
 }

@@ -1,191 +1,159 @@
 @import url('../GlobalTheme.css');
 
 .club-form-page {
-    min-height: calc(100vh - 80px);
+    min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 2rem;
-    background: linear-gradient(135deg, #f5f7fc 0%, #f8fafc 100%);
-    animation: fadeIn 0.5s ease;
+    animation: slideUp 0.5s ease;
 }
 
 .club-form-container {
     width: 100%;
-    max-width: 550px;
+    max-width: 700px;
 }
 
 .club-form-card {
-    background: var(--surface);
-    border: 1px solid var(--border-light);
+    background: var(--card);
     border-radius: var(--radius-lg);
     padding: 2.5rem;
-    box-shadow: var(--shadow-lg);
-    animation: slideUp 0.5s ease;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
 }
 
 .club-form-card h1 {
-    font-size: 1.875rem;
+    font-size: 1.75rem;
+    font-weight: 800;
     color: var(--text-heading);
     margin-bottom: 0.5rem;
-    text-align: center;
-    font-weight: 900;
-    letter-spacing: -0.02em;
 }
 
-.club-form-card .event-name {
+.event-name {
     color: var(--primary);
     font-size: 1rem;
-    text-align: center;
-    margin-bottom: 0.5rem;
-    font-weight: 700;
+    margin-bottom: 0.25rem;
 }
 
-.club-form-card .form-subtitle {
-    color: var(--text-muted);
-    font-size: 0.875rem;
-    text-align: center;
+.form-subtitle {
+    color: var(--muted);
+    font-size: 0.9rem;
     margin-bottom: 1.5rem;
-    line-height: 1.625;
 }
 
-.club-form-card .alert {
-    padding: 1rem;
-    border-radius: var(--radius);
-    margin-bottom: 1.5rem;
-    font-size: 0.875rem;
-}
-
-.club-form-card .alert-success {
-    background: hsl(142 76% 36% / 0.15);
-    color: hsl(142 76% 36%);
-    border: 1px solid hsl(142 76% 36% / 0.3);
-}
-
-.club-form-card .alert-error {
-    background: hsl(0 84% 60% / 0.15);
-    color: hsl(0 84% 60%);
-    border: 1px solid hsl(0 84% 60% / 0.3);
-}
-
-.club-form-card .form-row {
+.form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
 }
 
 @media (max-width: 600px) {
-    .club-form-card .form-row {
+    .form-row {
         grid-template-columns: 1fr;
+    }
+    .club-form-card {
+        padding: 1.5rem;
     }
 }
 
-.club-form-card .form-group {
-    margin-bottom: 1.25rem;
-}
-
-.club-form-card .form-group label {
-    display: block;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--foreground);
-}
-
-.club-form-card .form-group input,
-.club-form-card .form-group select,
-.club-form-card .form-group textarea {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--input);
-    border-radius: var(--radius);
+/* ── Dynamic Links Section ── */
+.links-section {
+    margin: 1.25rem 0;
+    padding: 1.25rem;
     background: var(--background);
-    color: var(--foreground);
-    font-size: 1rem;
-    font-family: inherit;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.club-form-card .form-group input:focus,
-.club-form-card .form-group select:focus,
-.club-form-card .form-group textarea:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-alpha, hsl(20 90% 48% / 0.15));
-}
-
-.club-form-card .form-group textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-.club-form-card .btn {
-    width: 100%;
-    padding: 0.875rem 1.5rem;
-    border: none;
+    border: 2px dashed var(--border);
     border-radius: var(--radius);
-    font-size: 1rem;
-    font-weight: 700;
+}
+
+.links-header label {
+    font-weight: 600;
+    color: var(--text-heading);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.links-note {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin: 0.25rem 0 0.75rem;
+}
+
+.link-input-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    align-items: center;
+}
+
+.link-label-input {
+    width: 140px;
+    flex-shrink: 0;
+}
+
+.link-url-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.btn-remove-link {
+    background: none;
+    border: none;
+    color: #ef4444;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-    font-family: inherit;
-    letter-spacing: -0.01em;
-    position: relative;
-    overflow: hidden;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    transition: transform 0.2s;
+    flex-shrink: 0;
 }
 
-.club-form-card .btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
+.btn-remove-link:hover {
+    transform: scale(1.15);
 }
 
-.club-form-card .btn-primary {
-    background: var(--primary);
-    color: #ffffff;
-    border: 1.5px solid var(--primary);
+.btn-add-link {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--primary);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
 }
 
-.club-form-card .btn-primary::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-.club-form-card .btn-primary:hover::before:not(:disabled) {
-    width: 300px;
-    height: 300px;
-}
-
-.club-form-card .btn-primary:hover:not(:disabled) {
-    background: var(--primary-hov);
-    border-color: var(--primary-hov);
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.4),
-                0 0 0 1px rgba(37, 99, 235, 0.1);
-}
-
-.club-form-card .btn-primary:active:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-}
-
-.club-form-card .btn-secondary {
-    background: var(--surface-dim);
-    color: var(--text-body);
-    border: 1px solid var(--border-light);
-    margin-top: 0.75rem;
-}
-
-.club-form-card .btn-secondary:hover:not(:disabled) {
+.btn-add-link:hover {
     background: var(--primary-soft);
     border-color: var(--primary);
-    color: var(--primary);
-    transform: translateY(-2px);
+}
+
+/* ── Custom Fields Section ── */
+.custom-fields-section {
+    margin: 1.25rem 0;
+    padding: 1.25rem;
+    background: rgba(124, 58, 237, 0.04);
+    border: 1px solid rgba(124, 58, 237, 0.15);
+    border-radius: var(--radius);
+}
+
+.custom-fields-section h3 {
+    font-size: 1rem;
+    color: #7c3aed;
+    margin: 0 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+@media (max-width: 600px) {
+    .link-input-row {
+        flex-wrap: wrap;
+    }
+    .link-label-input {
+        width: 100%;
+    }
 }

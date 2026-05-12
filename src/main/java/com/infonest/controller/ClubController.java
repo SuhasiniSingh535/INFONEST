@@ -53,6 +53,11 @@ public class ClubController {
         List<User> faculty = userRepository.findByClubId(id);
         response.put("faculty", faculty);
 
+        // 4. Members — students who got approvalCount = 2 in recruitment events of this club
+        List<Long> memberUserIds = registrationRepository.findMemberUserIdsByClubId(id);
+        List<User> members = memberUserIds.isEmpty() ? List.of() : userRepository.findAllById(memberUserIds);
+        response.put("members", members);
+
         return ResponseEntity.ok(response);
     }
 

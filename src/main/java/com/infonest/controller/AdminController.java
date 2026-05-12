@@ -115,6 +115,16 @@ public class AdminController {
             event.setHidden(false);
         }
 
+        // Set default eventType if not specified
+        if (event.getEventType() == null) {
+            event.setEventType("NON_RECRUITMENT");
+        }
+
+        // If recruitment event, force internal form
+        if ("RECRUITMENT".equals(event.getEventType())) {
+            event.setRegistrationFormLink("club_form_link");
+        }
+
         eventRepository.save(event);
         return ResponseEntity.ok("Event '" + event.getEventName() + "' added successfully!");
     }
@@ -155,7 +165,15 @@ public class AdminController {
         event.setEventDate(eventDetails.getEventDate());
         event.setEventTime(eventDetails.getEventTime());
         event.setDeadline(eventDetails.getDeadline());
-        event.setRegistrationFormLink(eventDetails.getRegistrationFormLink());
+        event.setEventType(eventDetails.getEventType() != null ? eventDetails.getEventType() : "NON_RECRUITMENT");
+        event.setCustomFormFields(eventDetails.getCustomFormFields());
+
+        // If recruitment event, force internal form
+        if ("RECRUITMENT".equals(event.getEventType())) {
+            event.setRegistrationFormLink("club_form_link");
+        } else {
+            event.setRegistrationFormLink(eventDetails.getRegistrationFormLink());
+        }
 
         eventRepository.save(event);
         return ResponseEntity.ok("Event updated successfully!");

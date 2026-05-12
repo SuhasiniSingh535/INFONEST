@@ -132,34 +132,96 @@
 .ebc-actions {
   margin-top: 1rem;
   display: flex;
+  gap: 0.5rem;
   justify-content: stretch;
 }
 
 .ebc-btn {
-  flex-grow: 1;
-  padding: 0.5rem;
-  border-radius: 6px;
+  flex: 1;
+  padding: 0.6rem;
+  border-radius: 8px;
   border: none;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
-  background: var(--primary);
-  color: white;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ebc-btn:hover {
-  background: var(--primary-hov);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.ebc-btn.btn-edit {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.ebc-btn.btn-edit:hover {
+  background: #2563eb;
+  color: white;
+}
+
+.ebc-btn.btn-hide, .ebc-btn.btn-unhide {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.ebc-btn.btn-hide:hover {
+  background: #64748b;
+  color: white;
+}
+
+.ebc-btn.btn-unhide:hover {
+  background: #0ea5e9;
+  color: white;
+  border-color: #0ea5e9;
 }
 
 .ebc-btn.btn-delete {
-  background: transparent;
+  background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
-  border: 1.5px solid #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .ebc-btn.btn-delete:hover {
   background: #ef4444;
   color: white;
 }
+
+/* Hidden State Styling */
+.event-card--hidden {
+  opacity: 0.85;
+  filter: grayscale(0.5);
+  border: 1px dashed #94a3b8;
+}
+
+.event-card--hidden .event-blob-bg {
+  background: rgba(248, 250, 252, 0.95);
+}
+
+.blob--hidden {
+  background-color: #64748b !important;
+  opacity: 0.3;
+}
+
+.ebc-hidden-badge {
+  background: #64748b;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 100px;
+  width: fit-content;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+

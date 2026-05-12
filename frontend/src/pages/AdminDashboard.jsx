@@ -149,8 +149,24 @@ const AdminDashboard = () => {
     const [clubForm, setClubForm] = useState({ clubId: '', clubName: '', description: '' });
     const [eventForm, setEventForm] = useState({
         clubId: '', eventName: '', description: '', venueId: '',
-        eventDate: '', eventTime: '', deadline: '', registrationFormLink: ''
+        eventDate: '', eventTime: '', deadline: '', registrationFormLink: '',
+        eventType: 'NON_RECRUITMENT', customFormFields: '[]'
     });
+    const [customFields, setCustomFields] = useState([]);
+
+    const addCustomField = () => setCustomFields([...customFields, { label: '', type: 'text', required: false }]);
+    const updateCustomField = (index, key, value) => {
+        const updated = [...customFields];
+        updated[index][key] = value;
+        setCustomFields(updated);
+    };
+    const removeCustomField = (index) => setCustomFields(customFields.filter((_, i) => i !== index));
+    const handleEventTypeChange = (type) => {
+        setEventForm(prev => ({
+            ...prev, eventType: type,
+            registrationFormLink: type === 'RECRUITMENT' ? 'club_form_link' : prev.registrationFormLink
+        }));
+    };
     const [assignForm, setAssignForm] = useState({ email: '', clubId: '' });
 
     useEffect(() => { fetchData(); }, []);
@@ -204,20 +220,22 @@ const AdminDashboard = () => {
     const handleEventSubmit = async (e) => {
         e.preventDefault();
         try {
+            const payload = { ...eventForm, customFormFields: JSON.stringify(customFields) };
+            if (payload.eventType === 'RECRUITMENT') payload.registrationFormLink = 'club_form_link';
             if (editingItem) {
-                await adminAPI.updateEvent(editingItem.eventId, eventForm);
+                await adminAPI.updateEvent(editingItem.eventId, payload);
                 setMessage({ type: 'success', text: 'Event updated!' });
             } else {
-                await adminAPI.addEvent(eventForm);
+                await adminAPI.addEvent(payload);
                 setMessage({ type: 'success', text: 'Event added!' });
             }
-            closeModal(); fetchData();
+            closeModal(); setCustomFields([]); fetchData();
         } catch (err) {
             setMessage({ type: 'error', text: err.response?.data || 'Failed' });
         }
     };
 
-    const handleDeleteEvent = async (eventId) => {
+    const handleDeleteEvent = useCallback(async (eventId) => {
         if (!confirm('Delete this event?')) return;
         try {
             await adminAPI.deleteEvent(eventId);
@@ -225,7 +243,17 @@ const AdminDashboard = () => {
         } catch (err) {
             setMessage({ type: 'error', text: err.response?.data || 'Failed' });
         }
-    };
+    }, []);
+
+    const handleToggleVisibility = useCallback(async (eventId) => {
+        try {
+            const res = await adminAPI.toggleEventVisibility(eventId);
+            setMessage({ type: 'success', text: res.data });
+            fetchData();
+        } catch (err) {
+            setMessage({ type: 'error', text: err.response?.data || 'Failed to toggle visibility' });
+        }
+    }, []);
 
     const handleAssignFaculty = async (e) => {
         e.preventDefault();
@@ -263,9 +291,11 @@ const AdminDashboard = () => {
         if (type === 'club') {
             setClubForm(item ? { ...item } : { clubId: '', clubName: '', description: '' });
         } else if (type === 'event') {
+            const existingFields = item?.customFormFields ? JSON.parse(item.customFormFields) : [];
+            setCustomFields(existingFields);
             setEventForm(item
-                ? { ...item, eventDate: item.eventDate || '', deadline: item.deadline || '' }
-                : { clubId: '', eventName: '', description: '', venueId: '', eventDate: '', eventTime: '', deadline: '', registrationFormLink: '' }
+                ? { ...item, eventDate: item.eventDate || '', deadline: item.deadline || '', eventType: item.eventType || 'NON_RECRUITMENT', customFormFields: item.customFormFields || '[]' }
+                : { clubId: '', eventName: '', description: '', venueId: '', eventDate: '', eventTime: '', deadline: '', registrationFormLink: '', eventType: 'NON_RECRUITMENT', customFormFields: '[]' }
             );
         } else if (type === 'assign') {
             setAssignForm({ email: '', clubId: '' });
@@ -389,7 +419,10 @@ const AdminDashboard = () => {
                                     key={event.eventId}
                                     event={event}
                                     index={i}
-                                    onAction={(evt) => console.log('View event:', evt)}
+                                    isAdmin={true}
+                                    onEdit={(evt) => openModal('event', evt)}
+                                    onDelete={handleDeleteEvent}
+                                    onToggleVisibility={handleToggleVisibility}
                                 />
                             ))}
                         </div>
@@ -531,22 +564,26 @@ const AdminDashboard = () => {
                                     </div>
                                     <div className="form-group">
                                         <label><i className="fa-solid fa-star" /> Event Name *</label>
-                                        <input
-                                            value={eventForm.eventName}
-                                            onChange={e => setEventForm({ ...eventForm, eventName: e.target.value })}
-                                            required
-                                            placeholder="Enter event name"
-                                        />
+                                        <input value={eventForm.eventName} onChange={e => setEventForm({ ...eventForm, eventName: e.target.value })} required placeholder="Enter event name" />
                                     </div>
                                     <div className="form-group">
                                         <label><i className="fa-solid fa-pen" /> Description</label>
-                                        <textarea
-                                            value={eventForm.description}
-                                            onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
-                                            rows={2}
-                                            placeholder="Brief event description…"
-                                        />
+                                        <textarea value={eventForm.description} onChange={e => setEventForm({ ...eventForm, description: e.target.value })} rows={2} placeholder="Brief event description…" />
                                     </div>
+
+                                    {/* Event Type Toggle */}
+                                    <div className="form-group">
+                                        <label><i className="fa-solid fa-tag" /> Event Type *</label>
+                                        <div className="event-type-toggle">
+                                            <button type="button" className={`toggle-btn ${eventForm.eventType === 'NON_RECRUITMENT' ? 'active' : ''}`} onClick={() => handleEventTypeChange('NON_RECRUITMENT')}>
+                                                <i className="fa-solid fa-calendar-days" /> Non-Recruitment
+                                            </button>
+                                            <button type="button" className={`toggle-btn ${eventForm.eventType === 'RECRUITMENT' ? 'active recruitment' : ''}`} onClick={() => handleEventTypeChange('RECRUITMENT')}>
+                                                <i className="fa-solid fa-user-plus" /> Recruitment
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label><i className="fa-solid fa-calendar-days" /> Date *</label>
@@ -567,11 +604,48 @@ const AdminDashboard = () => {
                                             <input type="date" value={eventForm.deadline} onChange={e => setEventForm({ ...eventForm, deadline: e.target.value })} />
                                         </div>
                                     </div>
+
+                                    {/* Registration Link — disabled for RECRUITMENT */}
                                     <div className="form-group">
-                                        <label><i className="fa-solid fa-link" /> Registration Link</label>
-                                        <input value={eventForm.registrationFormLink} onChange={e => setEventForm({ ...eventForm, registrationFormLink: e.target.value })} placeholder="https://…" />
+                                        <label>
+                                            <i className="fa-solid fa-link" /> Registration Link
+                                            {eventForm.eventType === 'RECRUITMENT' && <span className="field-note"> (Auto: Internal Form)</span>}
+                                        </label>
+                                        <input
+                                            value={eventForm.eventType === 'RECRUITMENT' ? 'Internal Form (Automatic)' : eventForm.registrationFormLink}
+                                            onChange={e => setEventForm({ ...eventForm, registrationFormLink: e.target.value })}
+                                            placeholder="https://…"
+                                            disabled={eventForm.eventType === 'RECRUITMENT'}
+                                            style={eventForm.eventType === 'RECRUITMENT' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                                        />
                                     </div>
-                                    <button type="submit" className="btn btn-primary btn-full">
+
+                                    {/* Custom Form Fields Builder — only for RECRUITMENT */}
+                                    {eventForm.eventType === 'RECRUITMENT' && (
+                                        <div className="custom-fields-builder">
+                                            <div className="builder-header">
+                                                <h4><i className="fa-solid fa-list-check" /> Custom Form Fields</h4>
+                                                <p className="builder-note">Add extra fields students will fill during registration</p>
+                                            </div>
+                                            {customFields.map((field, idx) => (
+                                                <div key={idx} className="custom-field-row">
+                                                    <input className="field-label-input" value={field.label} onChange={e => updateCustomField(idx, 'label', e.target.value)} placeholder={`Field #${idx + 1} label`} />
+                                                    <select value={field.type} onChange={e => updateCustomField(idx, 'type', e.target.value)} className="field-type-select">
+                                                        <option value="text">Text</option>
+                                                        <option value="textarea">Long Text</option>
+                                                        <option value="select">Dropdown</option>
+                                                    </select>
+                                                    <label className="field-required-label">
+                                                        <input type="checkbox" checked={field.required} onChange={e => updateCustomField(idx, 'required', e.target.checked)} /> Required
+                                                    </label>
+                                                    <button type="button" className="btn-remove-field" onClick={() => removeCustomField(idx)}><i className="fa-solid fa-trash-can" /></button>
+                                                </div>
+                                            ))}
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={addCustomField}><i className="fa-solid fa-plus" /> Add Field</button>
+                                        </div>
+                                    )}
+
+                                    <button type="submit" className="btn btn-primary btn-full" style={{marginTop: '1rem'}}>
                                         {editingItem ? <><i className="fa-solid fa-check" /> Update Event</> : <><i className="fa-solid fa-plus" /> Add Event</>}
                                     </button>
                                 </form>

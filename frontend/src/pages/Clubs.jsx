@@ -229,6 +229,8 @@ const Clubs = () => {
     const [registrations, setRegistrations] = useState([]);
     const [selectedClub, setSelectedClub] = useState(null);
     const [clubEvents, setClubEvents] = useState([]);
+    const [clubFaculty, setClubFaculty] = useState([]);
+    const [clubMembers, setClubMembers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('events');
     const [message, setMessage] = useState({ type: '', text: '' });
@@ -270,6 +272,8 @@ const Clubs = () => {
             ]);
             setSelectedClub(detailsRes.data.club || detailsRes.data);
             setClubEvents(eventsRes.data);
+            setClubFaculty(detailsRes.data.faculty || []);
+            setClubMembers(detailsRes.data.members || []);
             if (isAuthenticated && user?.userId) {
                 const regsRes = await studentAPI.getMyRegistrations(user.userId);
                 setRegistrations(regsRes.data);
@@ -366,6 +370,49 @@ const Clubs = () => {
                         <button onClick={() => setMessage({ type: '', text: '' })}>×</button>
                     </div>
                 )}
+
+                {/* Faculty & Members Section */}
+                <div className="cl-people-section">
+                    <div className="cl-people-card cl-faculty-card">
+                        <div className="cl-people-header">
+                            <Icon d={IC.users} size={18} />
+                            <h3>Faculty Advisors</h3>
+                            <span className="cl-people-count">{clubFaculty.length}</span>
+                        </div>
+                        {clubFaculty.length > 0 ? (
+                            <div className="cl-people-list">
+                                {clubFaculty.map(f => (
+                                    <div key={f.userId} className="cl-person-chip">
+                                        <span className="cl-person-avatar">{(f.firstName?.[0] || '?').toUpperCase()}</span>
+                                        <span className="cl-person-name">{`${f.firstName || ''} ${f.lastName || ''}`.trim() || f.email}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="cl-people-empty">No faculty assigned yet</p>
+                        )}
+                    </div>
+
+                    <div className="cl-people-card cl-members-card">
+                        <div className="cl-people-header">
+                            <Icon d={IC.check} size={18} />
+                            <h3>Club Members</h3>
+                            <span className="cl-people-count">{clubMembers.length}</span>
+                        </div>
+                        {clubMembers.length > 0 ? (
+                            <div className="cl-people-list">
+                                {clubMembers.map(m => (
+                                    <div key={m.userId} className="cl-person-chip cl-member-chip">
+                                        <span className="cl-person-avatar cl-member-avatar">{(m.firstName?.[0] || '?').toUpperCase()}</span>
+                                        <span className="cl-person-name">{`${m.firstName || ''} ${m.lastName || ''}`.trim() || m.email}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="cl-people-empty">No members yet</p>
+                        )}
+                    </div>
+                </div>
 
                 {/* Events section */}
                 <div className="cl-section-header">
