@@ -97,7 +97,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // Use full origin(s) including scheme: e.g. http://localhost:3000
         configuration.setAllowedOrigins(
-                Arrays.asList("http://localhost:3000", "https://infonest-backend.onrender.com", "http://localhost:5173"));
+                Arrays.asList("http://localhost:3000", "http://localhost:5173", "https://infonest-three.vercel.app"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
