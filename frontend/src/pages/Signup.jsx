@@ -71,7 +71,7 @@ const Signup = () => {
 
         setLoading(true);
         try {
-            const res = await axios.post('http://localhost:8081/api/v1/auth/signup', formData);
+            const res = await axios.post('https://infonest-backend.onrender.com/api/v1/auth/signup', formData);
             if (res.data === "OTP_SENT") {
                 setShowOtpField(true);
                 setSuccess('OTP sent to your email! Please verify.');
@@ -102,7 +102,7 @@ const Signup = () => {
 
         setLoading(true);
         try {
-            const res = await axios.post('http://localhost:8081/api/v1/auth/verify-otp', {
+            const res = await axios.post('https://infonest-backend.onrender.com/api/v1/auth/verify-otp', {
                 email: formData.email,
                 otp: otp
             });

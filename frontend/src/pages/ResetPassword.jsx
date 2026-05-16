@@ -52,7 +52,7 @@ const ResetPassword = () => {
         setMessage('');
 
         try {
-            await axios.post('http://localhost:8081/api/auth/reset-password', {
+            await axios.post('https://infonest-backend.onrender.com/api/auth/reset-password', {
                 token: token,
                 newPassword: newPassword
             });
